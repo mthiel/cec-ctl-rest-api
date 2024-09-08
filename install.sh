@@ -27,7 +27,7 @@ chown -R cec-api:cec-api /opt/cec-ctl-rest-api
 
 # Install Node.js dependencies
 cd /opt/cec-ctl-rest-api
-su -c "npm install" cec-api
+sudo -u cec-api npm install
 
 # Copy systemd service file
 cp cec-ctl-rest-api.service /etc/systemd/system/
