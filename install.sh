@@ -22,12 +22,15 @@ else
     git clone https://github.com/mthiel/cec-ctl-rest-api.git /opt/cec-ctl-rest-api
 fi
 
+# Create a directory for npm cache
+mkdir -p /opt/cec-ctl-rest-api/.npm-cache
+
 # Set correct permissions
 chown -R cec-api:cec-api /opt/cec-ctl-rest-api
 
 # Install Node.js dependencies
 cd /opt/cec-ctl-rest-api
-sudo -u cec-api npm install
+sudo -u cec-api npm install --no-user-config --cache /opt/cec-ctl-rest-api/.npm-cache
 
 # Copy systemd service file
 cp cec-ctl-rest-api.service /etc/systemd/system/
