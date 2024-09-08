@@ -22,6 +22,31 @@ function executeCecCommand(args, callback) {
 	});
 }
 
+// Sub-functions for different CEC commands
+const cecCommands = {
+	'get-cec-version': (logicalDeviceId) => `--get-cec-version ${logicalDeviceId}`,
+	'get-power-status': (logicalDeviceId) => `--get-power-status ${logicalDeviceId}`,
+	'get-physical-address': (logicalDeviceId) => `--get-physical-address ${logicalDeviceId}`,
+	// Add more commands as needed
+};
+
+// Updated route handler
+app.get('/cec-ctl/:command/:logicalDeviceId', (req, res) => {
+	const { command, logicalDeviceId } = req.params;
+	
+	if (!cecCommands[command]) {
+		return res.status(400).json({ error: 'Invalid command' });
+	}
+
+	const args = cecCommands[command](logicalDeviceId);
+	executeCecCommand(args, (error, result) => {
+		if (error) {
+			return res.status(500).json({ error: 'Failed to execute command' });
+		}
+		res.json(result);
+	});
+});
+
 // Execute the playback registration command on startup
 executeCecCommand('--playback', (error, result) => {
 	if (error) {
@@ -29,15 +54,6 @@ executeCecCommand('--playback', (error, result) => {
 	} else {
 		console.log('Successfully registered as playback device');
 	}
-});
-
-app.get('/cec-ctl', (req, res) => {
-	executeCecCommand(req.query.command, (error, result) => {
-		if (error) {
-			return res.status(500).json({ error: 'Failed to execute command' });
-		}
-		res.json(result);
-	});
 });
 
 const port = process.env.PORT || 3000;
