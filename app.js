@@ -5,6 +5,15 @@ const { exec } = require('child_process');
 const app = express();
 app.use(bodyParser.json());
 
+// Execute the playback registration command on startup
+exec('cec-ctl --playback', (error, stdout, stderr) => {
+    if (error) {
+        console.error(`Failed to register as playback device: ${error}`);
+    } else {
+        console.log('Successfully registered as playback device');
+    }
+});
+
 app.get('/cec-ctl', (req, res) => {
     const command = `cec-ctl ${req.query.command}`;
 
@@ -19,4 +28,20 @@ app.get('/cec-ctl', (req, res) => {
 });
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`Server running on port ${port}`));
+const server = app.listen(port, () => console.log(`Server running on port ${port}`));
+
+// Shutdown handler
+process.on('SIGINT', () => {
+    console.log('Shutting down server...');
+    exec('cec-ctl --clear', (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Failed to unregister device: ${error}`);
+        } else {
+            console.log('Successfully unregistered device');
+        }
+        server.close(() => {
+            console.log('Server closed');
+            process.exit(0);
+        });
+    });
+});
