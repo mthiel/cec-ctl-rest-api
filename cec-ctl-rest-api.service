@@ -1,0 +1,13 @@
+[Unit]
+Description=CEC Control REST API
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/node /opt/cec-ctl-rest-api/app.js
+Restart=always
+User=cec-api
+Group=cec-api
+Environment=PORT=3000
+
+[Install]
+WantedBy=multi-user.target
