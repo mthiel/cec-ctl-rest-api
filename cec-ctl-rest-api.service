@@ -8,6 +8,8 @@ Restart=always
 User=cec-api
 Group=cec-api
 Environment=PORT=3000
+RestartSec=10
+WorkingDirectory=/opt/cec-ctl-rest-api
 
 [Install]
 WantedBy=multi-user.target
