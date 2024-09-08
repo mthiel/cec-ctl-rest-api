@@ -17,7 +17,7 @@ adduser --system --no-create-home --group cec-api
 # Clone or update the repository
 if [ -d "/opt/cec-ctl-rest-api" ]; then
     cd /opt/cec-ctl-rest-api
-    git pull
+    sudo -u cec-api git pull
 else
     git clone https://github.com/mthiel/cec-ctl-rest-api.git /opt/cec-ctl-rest-api
 fi
