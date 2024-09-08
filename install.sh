@@ -11,8 +11,9 @@ fi
 apt-get update
 apt-get install -y nodejs npm git
 
-# Create a dedicated user for the service
+# Create a dedicated user for the service and add to video group
 adduser --system --no-create-home --group cec-api
+usermod -a -G video cec-api
 
 # Stop the service if it's running
 systemctl stop cec-ctl-rest-api
