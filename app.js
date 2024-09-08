@@ -17,17 +17,35 @@ function executeCecCommand(args, callback) {
 			console.error(`CEC command execution error: ${error}`);
 			callback(error, null);
 		} else {
-			callback(null, { stdout, stderr });
+			callback(null, stdout);
 		}
 	});
 }
 
 // Sub-functions for different CEC commands
 const cecCommands = {
-	'get-cec-version': (logicalDeviceId) => `--get-cec-version ${logicalDeviceId}`,
-	'get-power-status': (logicalDeviceId) => `--get-power-status ${logicalDeviceId}`,
-	'get-physical-address': (logicalDeviceId) => `--get-physical-address ${logicalDeviceId}`,
-	// Add more commands as needed
+	'get-cec-version': {
+		args: (logicalDeviceId) => `--get-cec-version -t ${logicalDeviceId}`,
+		process: (output) => {
+			const versionMatch = output.match(/cec-version: version-(\d+\.\d+)/);
+			return {
+				version: versionMatch ? versionMatch[1] : null
+			};
+		}
+	},
+	'give-audio-status': {
+		args: (logicalDeviceId) => `--give-audio-status -t ${logicalDeviceId}`,
+		process: (output) => {
+			const muteMatch = output.match(/aud-mute-status: (\w+)/);
+			const volumeMatch = output.match(/aud-vol-status: (\d+)/);
+			
+			return {
+				mute: muteMatch && muteMatch[1] === 'on' ? 1 : 0,
+				volume: volumeMatch ? parseInt(volumeMatch[1]) : null
+			};
+		}
+	},
+	// Add more commands as needed, following the same structure
 };
 
 // Updated route handler
@@ -38,12 +56,13 @@ app.get('/cec-ctl/:command/:logicalDeviceId', (req, res) => {
 		return res.status(400).json({ error: 'Invalid command' });
 	}
 
-	const args = cecCommands[command](logicalDeviceId);
-	executeCecCommand(args, (error, result) => {
+	const { args, process } = cecCommands[command];
+	executeCecCommand(args(logicalDeviceId), (error, result) => {
 		if (error) {
 			return res.status(500).json({ error: 'Failed to execute command' });
 		}
-		res.json(result);
+		const processedResult = process(result);
+		res.json(processedResult);
 	});
 });
 
