@@ -14,6 +14,9 @@ apt-get install -y nodejs npm git
 # Create a dedicated user for the service
 adduser --system --no-create-home --group cec-api
 
+# Stop the service if it's running
+systemctl stop cec-ctl-rest-api
+
 # Clone or update the repository
 if [ -d "/opt/cec-ctl-rest-api" ]; then
     cd /opt/cec-ctl-rest-api
