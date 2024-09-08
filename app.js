@@ -7,7 +7,7 @@ app.use(bodyParser.json());
 
 // cec tool constants
 const CEC_CTL_COMMAND = 'cec-ctl';
-const CEC_CTL_DEFAULTS = '-s';
+const CEC_CTL_DEFAULTS = '-s --cec-version-1.4';
 
 // Helper function to execute CEC commands
 function executeCecCommand(args, callback) {
