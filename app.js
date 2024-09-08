@@ -5,8 +5,8 @@ const { exec } = require('child_process');
 const app = express();
 app.use(bodyParser.json());
 
-app.post('/cec-ctl', (req, res) => {
-    const command = `cec-ctl ${req.body.command}`;
+app.get('/cec-ctl', (req, res) => {
+    const command = `cec-ctl ${req.query.command}`;
 
     exec(command, (error, stdout, stderr) => {
         if (error) {
