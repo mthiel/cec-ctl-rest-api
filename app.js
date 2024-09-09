@@ -240,8 +240,15 @@ app.get('/set-volume-absolute/:logicalDeviceId/:volume', async (req, res, next) 
 	next();
 });
 
+// TODO: Implement the following endpoints:
+// - set-mute
+// - set-active-source
+
 // 404 handler
-app.use((req, res) => {
+app.use((req, res, next) => {
+	if (res.headersSent) {
+		return next();
+	}
 	const response = new standardResponse(req);
 	response.error = true;
 	response.message = 'Unknown endpoint.';
