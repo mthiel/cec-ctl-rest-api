@@ -14,6 +14,25 @@ const CEC_CTL_DEFAULTS = '-s --cec-version-1.4';
 const VOLUME_STEP = 0.5;
 const COMMAND_DELAY = 50;
 
+// Response object factory
+function standardResponse(req) {
+	const { debug, volumeStep, commandDelay } = req.query;
+
+	const response = {
+		error: false,
+		message: ''
+	};
+
+	if (debug) {
+		response.debug = {
+			volumeStep: volumeStep ? parseFloat(volumeStep) : VOLUME_STEP,
+			commandDelay: commandDelay ? parseInt(commandDelay) : COMMAND_DELAY
+		};
+	}
+
+	return response;
+}
+
 // Helper function to execute CEC commands
 function callCecCtl(args) {
 	const command = `${CEC_CTL_COMMAND} ${CEC_CTL_DEFAULTS} ${args}`;
