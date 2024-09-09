@@ -72,12 +72,17 @@ function getAudioStatus(logicalDeviceId) {
 }
 
 function sendUserControl(logicalDeviceId, control) {
-	callCecCtl(`--user-control-pressed ui-cmd=${control} -t ${logicalDeviceId}`);
-	callCecCtl(`--user-control-released -t ${logicalDeviceId}`);
+	if (callCecCtl(`--user-control-pressed ui-cmd=${control} -t ${logicalDeviceId}`)) {
+		if (callCecCtl(`--user-control-released -t ${logicalDeviceId}`)) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 function increaseVolume(logicalDeviceId) {
-	sendUserControl(logicalDeviceId, 'volume-up');
+	return sendUserControl(logicalDeviceId, 'volume-up');
 }
 
 function decreaseVolume(logicalDeviceId) {
@@ -94,10 +99,21 @@ app.get('/get-cec-version/:logicalDeviceId', (req, res, next) => {
 		return res.status(400).json(response);
 	}
 
+	/*
+		Sample output:
+
+		Transmit from Playback Device 2 to Audio System (8 to 5):
+		GET_CEC_VERSION (0x9f)
+			Received from Audio System (5):
+			CEC_VERSION (0x9e):
+				cec-version: version-1-4 (0x05)
+				Sequence: 979 Tx Timestamp: 76018.612s Rx Timestamp: 76018.705s
+				Approximate response time: 21 ms
+	*/
 	const output = callCecCtl(`--get-cec-version -t ${logicalDeviceId}`);
 
 	if (output) {
-		const version = output.match(/cec-version: (\S+)/);
+		const version = output.match(/cec-version: (\S+)/); // cec-version: version-1-4 (0x05)
 		response.version = version ? version[1] : null;
 	} else {
 		response.error = true;
@@ -112,7 +128,7 @@ app.get('/get-cec-version/:logicalDeviceId', (req, res, next) => {
 
 app.get('/get-audio-status/:logicalDeviceId', (req, res, next) => {
 	const { logicalDeviceId } = req.params;
-	const response = new standardResponse(req);
+	let response = new standardResponse(req);
 
 	if (!logicalDeviceId) {
 		response.error = true;
@@ -122,7 +138,7 @@ app.get('/get-audio-status/:logicalDeviceId', (req, res, next) => {
 	
 	const audioStatus = getAudioStatus(logicalDeviceId);
 	if (audioStatus) {
-		response.audioStatus = audioStatus;
+		response = {...response, audioStatus};
 	} else {
 		response.error = true;
 		response.message = 'Failed to get audio status.';
@@ -178,31 +194,37 @@ app.get('/set-volume-absolute/:logicalDeviceId/:volume', async (req, res, next) 
 
 	try {
 		const audioStatus = getAudioStatus(logicalDeviceId);
-		if (audioStatus) {
-			const currentVolume = audioStatus.volume;
-			if (currentVolume !== null) {
-				if (currentVolume < volume) {
-					for (let i = currentVolume; i < volume; i+=volumeStep) {
-						increaseVolume(logicalDeviceId);
-						if (commandDelay > 0) {
-							await setTimeout(commandDelay);
-						}
-					}
-				} else if (currentVolume > volume) {
-					for (let i = currentVolume; i > volume; i-=res.locals.volumeStep) {
-						decreaseVolume(logicalDeviceId);
-						if (commandDelay > 0) {
-							await setTimeout(commandDelay);
-						}
-					}
-				} else {
-					response.message = 'Volume is already set to the desired value.';
-				}
-			} else {
-				throw "The current volume level is not available to compare against. Aborting.";
-			}
-		} else {
+		if (!audioStatus) {
 			throw "Failed to get current audio status. Aborting.";
+		}
+
+		const currentVolume = audioStatus.volume;
+		if (currentVolume === null) {
+			throw "The current volume level is not available to compare against. Aborting.";
+		}
+
+		if (currentVolume === volume) {
+			response.message = 'Volume is already set to the desired value.';
+			return res.status(200).json(response);
+		}
+
+		const adjustmentSteps = Math.abs(currentVolume - volume) / volumeStep;
+		for (let i = 0; i < adjustmentSteps; i++) {
+			function adjustVolume() {
+				if (currentVolume < volume) {
+					return increaseVolume(logicalDeviceId);
+				} else {
+					return decreaseVolume(logicalDeviceId);
+				}
+			}
+
+			if (!adjustVolume()) {
+				throw `Failed to adjust volume on step ${i}.`;
+			}
+
+			if (commandDelay > 0) {
+				await setTimeout(commandDelay);
+			}
 		}
 	} catch (error) {
 		const errorMessage = 'Failed to set an absolute volume value: ' + error.toString();
