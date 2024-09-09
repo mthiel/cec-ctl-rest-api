@@ -10,7 +10,7 @@ app.use(bodyParser.json());
 const CEC_CTL_COMMAND = 'cec-ctl';
 const CEC_CTL_DEFAULTS = '-s --cec-version-1.4';
 
-// Other constants
+// Other default values
 const VOLUME_STEP = 0.5;
 const COMMAND_DELAY = 50;
 
@@ -117,6 +117,11 @@ app.get('/set-volume-absolute/:logicalDeviceId/:volume', async (req, res) => {
 	if (!logicalDeviceId || !volume) {
 		return res.status(400).json({ error: 'Logical device ID and volume are required.' });
 	}
+
+	let response = {
+		volumeStep: res.locals.volumeStep,
+		commandDelay: res.locals.commandDelay
+	};
 	
 	try {
 		const audioStatus = getAudioStatus(logicalDeviceId);
@@ -134,7 +139,8 @@ app.get('/set-volume-absolute/:logicalDeviceId/:volume', async (req, res) => {
 						await setTimeout(res.locals.commandDelay);
 					}
 				} else {
-					res.status(200).json({ message: 'Volume is already set to the desired value.' });
+					response.message = 'Volume is already set to the desired value.';
+					res.status(200).json(response);
 					return;
 				}
 			} else {
@@ -146,21 +152,30 @@ app.get('/set-volume-absolute/:logicalDeviceId/:volume', async (req, res) => {
 	} catch (error) {
 		const errorMessage = 'Failed to set volume: ' + error;
 		console.error(errorMessage);
-		res.status(500).json({ error: errorMessage });
+		response.error = errorMessage;
+		res.status(500).json(response);
 	}
-
-	res.json({ message: 'Volume set successfully.' });
 });
 
 // 404 handler
 app.use((req, res) => {
-	res.status(404).json({ error: 'Unknown endpoint' });
+	let response = {
+		volumeStep: res.locals.volumeStep,
+		commandDelay: res.locals.commandDelay,
+		error: 'Unknown endpoint'
+	};
+	res.status(404).json(response);
 });
 
 // 500 handler
 app.use((err, req, res) => {
+	let response = {
+		volumeStep: res.locals.volumeStep,
+		commandDelay: res.locals.commandDelay,
+		error: err.message
+	};
+	res.status(500).json(response);
 	console.error(err.stack);
-	res.status(500).json({ error: err.message });
 });
 
 // Execute the playback registration command on startup
