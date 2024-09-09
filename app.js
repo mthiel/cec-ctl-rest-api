@@ -27,7 +27,7 @@ const cecCommands = {
 	'get-cec-version': {
 		args: (logicalDeviceId) => `--get-cec-version -t ${logicalDeviceId}`,
 		process: (output) => {
-			const versionMatch = output.match(/cec-version: version-(\d+\.\d+)/);
+			const versionMatch = output.match(/cec-version: (\S+)/);
 			return {
 				version: versionMatch ? versionMatch[1] : null
 			};
