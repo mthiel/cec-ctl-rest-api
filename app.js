@@ -10,6 +10,10 @@ app.use(bodyParser.json());
 const CEC_CTL_COMMAND = 'cec-ctl';
 const CEC_CTL_DEFAULTS = '-s --cec-version-1.4';
 
+// Other constants
+const VOLUME_STEP = 0.5;
+const COMMAND_DELAY = 50;
+
 // Helper function to execute CEC commands
 function callCecCtl(args) {
 	const command = `${CEC_CTL_COMMAND} ${CEC_CTL_DEFAULTS} ${args}`;
@@ -112,14 +116,14 @@ app.get('/set-volume-absolute/:logicalDeviceId/:volume', async (req, res) => {
 			const currentVolume = audioStatus.volume;
 			if (currentVolume !== null) {
 				if (currentVolume < volume) {
-					for (let i = currentVolume; i < volume; i++) {
+					for (let i = currentVolume; i < volume; i+=VOLUME_STEP) {
 						increaseVolume(logicalDeviceId);
-						await setTimeout(100);
+						await setTimeout(COMMAND_DELAY);
 					}
 				} else if (currentVolume > volume) {
-					for (let i = currentVolume; i > volume; i--) {
+					for (let i = currentVolume; i > volume; i-=VOLUME_STEP) {
 						decreaseVolume(logicalDeviceId);
-						await setTimeout(100);
+						await setTimeout(COMMAND_DELAY);
 					}
 				} else {
 					res.status(200).json({ message: 'Volume is already set to the desired value.' });
