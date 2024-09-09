@@ -111,7 +111,7 @@ app.get('/set-volume-relative/:logicalDeviceId/:volume', (req, res) => {
 	res.status(200).json({ message: 'Volume adjusted successfully.' });
 });	
 
-app.get('/set-volume-absolute/:logicalDeviceId/:volume', async (req, res) => {
+app.get('/set-volume-absolute/:logicalDeviceId/:volume', async (req, res, next) => {
 	const { logicalDeviceId, volume } = req.params;
 
 	if (!logicalDeviceId || !volume) {
@@ -120,13 +120,15 @@ app.get('/set-volume-absolute/:logicalDeviceId/:volume', async (req, res) => {
 
 	let response = {
 		volumeStep: res.locals.volumeStep,
-		commandDelay: res.locals.commandDelay
+		commandDelay: res.locals.commandDelay,
+		requestedVolume: volume
 	};
 	
 	try {
 		const audioStatus = getAudioStatus(logicalDeviceId);
 		if (audioStatus) {
 			const currentVolume = audioStatus.volume;
+			response.currentVolume = currentVolume;
 			if (currentVolume !== null) {
 				if (currentVolume < volume) {
 					for (let i = currentVolume; i < volume; i+=res.locals.volumeStep) {
@@ -159,6 +161,7 @@ app.get('/set-volume-absolute/:logicalDeviceId/:volume', async (req, res) => {
 	}
 
 	res.status(200).json(response);
+	next();
 });
 
 // 404 handler
