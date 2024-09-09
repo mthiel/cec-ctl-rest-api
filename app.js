@@ -22,6 +22,27 @@ function executeCecCommand(args, callback) {
 	});
 }
 
+function setVolumeAbsolute(logicalDeviceId, volume) {
+	executeCecCommand(cecCommands['give-audio-status'].args(logicalDeviceId), (error, result) => {
+		if (error) {
+			console.error(`Failed to get audio status: ${error}`);
+		} else {
+			const audioStatus = cecCommands['give-audio-status'].process(result);
+			if (audioStatus.volume !== null) {
+				const currentVolume = audioStatus.volume;
+				
+				if (currentVolume < volume) {
+					// TODO: Increase the volume
+				} else {
+					// TODO: Decrease the volume
+				}
+			} else {
+				console.error('Failed to get audio status: Volume is null');
+			}
+		}
+	});
+}
+
 // Sub-functions for different CEC commands
 const cecCommands = {
 	'get-cec-version': {
@@ -45,25 +66,42 @@ const cecCommands = {
 			};
 		}
 	},
-	// Add more commands as needed, following the same structure
+	'custom-set-absolute-volume': {
+		args: (logicalDeviceId, volume) => `--set-audio-volume ${volume} -t ${logicalDeviceId}`,
+		process: (output) => {
+			return {
+				success: true
+			};
+		}
+	}
 };
 
-// Updated route handler
-app.get('/cec-ctl/:command/:logicalDeviceId', (req, res) => {
-	const { command, logicalDeviceId } = req.params;
+// GET request route handler
+app.get('/cec-ctl/:command/:logicalDeviceId/:value?', (req, res) => {
+	const { command, logicalDeviceId, value } = req.params;
 	
 	if (!cecCommands[command]) {
 		return res.status(400).json({ error: 'Invalid command' });
 	}
 
-	const { args, process } = cecCommands[command];
-	executeCecCommand(args(logicalDeviceId), (error, result) => {
-		if (error) {
-			return res.status(500).json({ error: 'Failed to execute command' });
+	if (command.startsWith('custom-')) {
+		if (command === 'custom-set-absolute-volume') {
+			setVolumeAbsolute(logicalDeviceId, value);
+		} else {
+			return res.status(400).json({ error: 'Invalid custom command' });
 		}
-		const processedResult = process(result);
-		res.json(processedResult);
-	});
+	} else {
+		const { args, process } = cecCommands[command];
+		const commandArgs = value !== undefined ? args(logicalDeviceId, value) : args(logicalDeviceId);
+		
+		executeCecCommand(commandArgs, (error, result) => {
+			if (error) {
+				return res.status(500).json({ error: 'Failed to execute command' });
+			}
+			const processedResult = process(result);
+			res.json(processedResult);
+		});
+	}
 });
 
 // Execute the playback registration command on startup
