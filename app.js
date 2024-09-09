@@ -1,6 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const { execSync } = require('child_process');
+const { setTimeout } = require('timers/promises');
 
 const app = express();
 app.use(bodyParser.json());
@@ -98,7 +99,7 @@ app.get('/set-volume-relative/:logicalDeviceId/:volume', (req, res) => {
 	res.status(200).json({ message: 'Volume adjusted successfully.' });
 });	
 
-app.get('/set-volume-absolute/:logicalDeviceId/:volume', (req, res) => {
+app.get('/set-volume-absolute/:logicalDeviceId/:volume', async (req, res) => {
 	const { logicalDeviceId, volume } = req.params;
 
 	if (!logicalDeviceId || !volume) {
@@ -111,9 +112,15 @@ app.get('/set-volume-absolute/:logicalDeviceId/:volume', (req, res) => {
 			const currentVolume = audioStatus.volume;
 			if (currentVolume !== null) {
 				if (currentVolume < volume) {
-					// TODO: Increase the volume
+					for (let i = currentVolume; i < volume; i++) {
+						increaseVolume(logicalDeviceId);
+						await setTimeout(100);
+					}
 				} else if (currentVolume > volume) {
-					// TODO: Decrease the volume
+					for (let i = currentVolume; i > volume; i--) {
+						decreaseVolume(logicalDeviceId);
+						await setTimeout(100);
+					}
 				} else {
 					res.status(200).json({ message: 'Volume is already set to the desired value.' });
 					return;
