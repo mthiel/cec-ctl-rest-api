@@ -136,6 +136,8 @@ app.get('/set-volume-absolute/:logicalDeviceId/:volume', async (req, res) => {
 		console.error(errorMessage);
 		res.status(500).json({ error: errorMessage });
 	}
+
+	res.json({ message: 'Volume set successfully.' });
 });
 
 // 404 handler
