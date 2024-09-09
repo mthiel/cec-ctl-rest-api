@@ -118,6 +118,11 @@ app.get('/set-volume-absolute/:logicalDeviceId/:volume', async (req, res, next) 
 		return res.status(400).json({ error: 'Logical device ID and volume are required.' });
 	}
 
+	// Temporary hack due to scoping issues with res.locals
+	const { volumeStep, commandDelay } = req.query;
+	res.locals.volumeStep = volumeStep ? parseFloat(volumeStep) : VOLUME_STEP;
+	res.locals.commandDelay = commandDelay ? parseInt(commandDelay) : COMMAND_DELAY;
+
 	let response = {
 		volumeStep: res.locals.volumeStep,
 		commandDelay: res.locals.commandDelay,
