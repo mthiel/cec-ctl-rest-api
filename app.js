@@ -1,6 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const { exec } = require('child_process');
+const { execSync } = require('child_process');
 
 const app = express();
 app.use(bodyParser.json());
@@ -10,86 +10,129 @@ const CEC_CTL_COMMAND = 'cec-ctl';
 const CEC_CTL_DEFAULTS = '-s --cec-version-1.4';
 
 // Helper function to execute CEC commands
-function executeCecCommand(args, callback) {
+function callCecCtl(args) {
 	const command = `${CEC_CTL_COMMAND} ${CEC_CTL_DEFAULTS} ${args}`;
-	exec(command, (error, stdout, stderr) => {
-		if (error) {
-			console.error(`CEC command execution error: ${error}`);
-			callback(error, null);
-		} else {
-			callback(null, stdout);
-		}
-	});
+
+	try {
+		return execSync(command).toString();
+	} catch (error) {
+		console.error(`Failed to execute command: ${error}`);
+	}
 }
 
-// Sub-functions for different CEC commands
-const cecCommands = {
-	'get-cec-version': {
-		args: (logicalDeviceId) => `--get-cec-version -t ${logicalDeviceId}`,
-		process: (output) => {
-			const versionMatch = output.match(/cec-version: (\S+)/);
-			return {
-				version: versionMatch ? versionMatch[1] : null
-			};
-		}
-	},
-	'give-audio-status': {
-		args: (logicalDeviceId) => `--give-audio-status -t ${logicalDeviceId}`,
-		process: (output) => {
-			const muteMatch = output.match(/aud-mute-status: (\w+)/);
-			const volumeMatch = output.match(/aud-vol-status: (\d+)/);
-			
-			return {
-				mute: muteMatch && muteMatch[1] === 'on' ? 1 : 0,
-				volume: volumeMatch ? parseInt(volumeMatch[1]) : null
-			};
-		}
-	},
-	// Add more commands as needed, following the same structure
-};
+function getAudioStatus(logicalDeviceId) {
+	const result = callCecCtl(`--give-audio-status -t ${logicalDeviceId}`);
 
-// Updated route handler
-app.get('/cec-ctl/:command/:logicalDeviceId', (req, res) => {
-	const { command, logicalDeviceId } = req.params;
-	
-	if (!cecCommands[command]) {
-		return res.status(400).json({ error: 'Invalid command' });
+	if (result) {
+		const mute = result.match(/aud-mute-status: (\w+)/);
+		const volume = result.match(/aud-vol-status: (\d+)/);
+		
+		return {
+			mute: mute && mute[1] === 'on' ? 1 : 0,
+			volume: volume ? parseInt(volume[1]) : null
+		};
+	}
+}
+
+app.get('/get-cec-version/:logicalDeviceId', (req, res) => {
+	const { logicalDeviceId } = req.params;
+
+	if (!logicalDeviceId) {
+		return res.status(400).json({ error: 'Logical device ID is required' });
 	}
 
-	const { args, process } = cecCommands[command];
-	executeCecCommand(args(logicalDeviceId), (error, result) => {
-		if (error) {
-			return res.status(500).json({ error: 'Failed to execute command' });
+	const result = callCecCtl(`--get-cec-version -t ${logicalDeviceId}`);
+
+	if (result) {
+		const version = result.match(/cec-version: (\S+)/);
+
+		res.json({
+			version: version ? version[1] : null
+		});
+	} else {
+		res.status(500).json({ error: 'Failed to get CEC version.' });
+	}
+});
+
+app.get('/get-audio-status/:logicalDeviceId', (req, res) => {
+	const { logicalDeviceId } = req.params;
+
+	if (!logicalDeviceId) {
+		return res.status(400).json({ error: 'Logical device ID is required.' });
+	}
+	
+	const audioStatus = getAudioStatus(logicalDeviceId);
+	if (audioStatus) {
+		res.json(audioStatus);
+	} else {
+		res.status(500).json({ error: 'Failed to get audio status.' });
+	}
+});
+
+app.get('/set-volume-absolute/:logicalDeviceId/:volume', (req, res) => {
+	const { logicalDeviceId, volume } = req.params;
+
+	if (!logicalDeviceId || !volume) {
+		return res.status(400).json({ error: 'Logical device ID and volume are required.' });
+	}
+	
+	try {
+		const audioStatus = getAudioStatus(logicalDeviceId);
+		if (audioStatus) {
+			const currentVolume = audioStatus.volume;
+			if (currentVolume !== null) {
+				if (currentVolume < volume) {
+					// TODO: Increase the volume
+				} else if (currentVolume > volume) {
+					// TODO: Decrease the volume
+				} else {
+					res.status(200).json({ message: 'Volume is already set to the desired value.' });
+					return;
+				}
+			} else {
+				throw "The current volume can't be read.";
+			}
+		} else {
+			throw "Failed to get current audio status.";
 		}
-		const processedResult = process(result);
-		res.json(processedResult);
-	});
+	} catch (error) {
+		const errorMessage = 'Failed to set volume: ' + error;
+		console.error(errorMessage);
+		res.status(500).json({ error: errorMessage });
+	}
+});
+
+// 404 handler
+app.use((req, res) => {
+	res.status(404).json({ error: 'Unknown endpoint' });
+});
+
+// 500 handler
+app.use((err, req, res, next) => {
+	console.error(err.stack);
+	res.status(500).json({ error: err.message });
 });
 
 // Execute the playback registration command on startup
-executeCecCommand('--playback', (error, result) => {
-	if (error) {
-		console.error('Failed to register as playback device');
-	} else {
-		console.log('Successfully registered as playback device');
-	}
-});
+callCecCtl('--playback');
+console.log('Successfully registered as playback device');
 
+// Start the server
 const port = process.env.PORT || 3000;
 const server = app.listen(port, () => console.log(`Server running on port ${port}`));
 
 // Shutdown handler
 process.on('SIGINT', () => {
 	console.log('Shutting down server...');
-	executeCecCommand('--clear', (error, result) => {
-		if (error) {
-			console.error('Failed to unregister device');
-		} else {
-			console.log('Successfully unregistered device');
-		}
-		server.close(() => {
-			console.log('Server closed');
-			process.exit(0);
-		});
+	try {
+		callCecCtl('--clear');
+		console.log('Successfully unregistered CEC device.');
+	} catch (error) {
+		console.error('Failed to unregister CEC device: ', error);
+	}
+
+	server.close(() => {
+		console.log('Server closed.');
+		process.exit(0);
 	});
 });
