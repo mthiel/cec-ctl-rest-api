@@ -14,7 +14,7 @@ function callCecCtl(args) {
 	const command = `${CEC_CTL_COMMAND} ${CEC_CTL_DEFAULTS} ${args}`;
 
 	try {
-		return execSync(command);
+		return execSync(command).toString();
 	} catch (error) {
 		console.error(`Failed to execute command: ${error}`);
 	}
