@@ -105,25 +105,29 @@ app.get('/set-volume-relative/:logicalDeviceId/:volume', (req, res) => {
 
 app.get('/set-volume-absolute/:logicalDeviceId/:volume', async (req, res) => {
 	const { logicalDeviceId, volume } = req.params;
+	const { volumeStep, commandDelay } = req.query;
 
 	if (!logicalDeviceId || !volume) {
 		return res.status(400).json({ error: 'Logical device ID and volume are required.' });
 	}
 	
+	const step = volumeStep ? parseFloat(volumeStep) : VOLUME_STEP;
+	const delay = commandDelay ? parseInt(commandDelay) : COMMAND_DELAY;
+
 	try {
 		const audioStatus = getAudioStatus(logicalDeviceId);
 		if (audioStatus) {
 			const currentVolume = audioStatus.volume;
 			if (currentVolume !== null) {
 				if (currentVolume < volume) {
-					for (let i = currentVolume; i < volume; i+=VOLUME_STEP) {
+					for (let i = currentVolume; i < volume; i+=step) {
 						increaseVolume(logicalDeviceId);
-						await setTimeout(COMMAND_DELAY);
+						await setTimeout(delay);
 					}
 				} else if (currentVolume > volume) {
-					for (let i = currentVolume; i > volume; i-=VOLUME_STEP) {
+					for (let i = currentVolume; i > volume; i-=step) {
 						decreaseVolume(logicalDeviceId);
-						await setTimeout(COMMAND_DELAY);
+						await setTimeout(delay);
 					}
 				} else {
 					res.status(200).json({ message: 'Volume is already set to the desired value.' });
