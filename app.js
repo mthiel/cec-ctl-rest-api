@@ -269,8 +269,28 @@ app.get('/set-mute/:logicalDeviceId/:mute', (req, res, next) => {
 	next();
 });
 
-// TODO: Implement the following endpoints:
-// - set-active-source
+app.get('/set-active-source/:address', (req, res, next) => {
+	const { address } = req.params;
+	const response = new standardResponse(req);
+
+	if (!address) {
+		response.error = true;
+		response.message = 'Physical address is required.';
+		return res.status(400).json(response);
+	}
+
+	if (callCecCtl(`--active-source phys-addr=${address}`) !== null) {
+		response.message = 'Active source set successfully.';
+	} else {
+		response.error = true;
+		response.message = 'Failed to set active source.';
+		return res.status(500).json(response);
+	}
+
+	res.status(200).json(response);
+
+	next();
+});
 
 // 404 handler
 app.use((req, res, next) => {
