@@ -41,15 +41,28 @@ function callCecCtl(args) {
 		return execSync(command).toString();
 	} catch (error) {
 		console.error(`Failed to execute command: ${error}`);
+		return null;
 	}
 }
 
 function getAudioStatus(logicalDeviceId) {
-	const result = callCecCtl(`--give-audio-status -t ${logicalDeviceId}`);
+	/*
+		Sample output:
 
-	if (result) {
-		const mute = result.match(/aud-mute-status: (\w+)/);
-		const volume = result.match(/aud-vol-status: (\d+)/);
+		Transmit from Playback Device 2 to Audio System (8 to 5):
+		GIVE_AUDIO_STATUS (0x71)
+	    	Received from Audio System (5):
+			REPORT_AUDIO_STATUS (0x7a):
+				aud-mute-status: off (0x00)
+				aud-vol-status: 40 (0x28)
+				Sequence: 911 Tx Timestamp: 72024.122s Rx Timestamp: 72024.214s
+				Approximate response time: 19 ms
+	*/
+	const output = callCecCtl(`--give-audio-status -t ${logicalDeviceId}`);
+
+	if (output) {
+		const mute = output.match(/aud-mute-status: (\w+)/);	// aud-mute-status: off (0x00)
+		const volume = output.match(/aud-vol-status: (\d+)/);	// aud-vol-status: 40 (0x28)
 		
 		return {
 			mute: mute && mute[1] === 'on' ? 1 : 0,
@@ -71,54 +84,64 @@ function decreaseVolume(logicalDeviceId) {
 	sendUserControl(logicalDeviceId, 'volume-down');
 }
 
-app.all('/', (req, res, next) => {
-	const { volumeStep, commandDelay } = req.query;
+app.get('/get-cec-version/:logicalDeviceId', (req, res, next) => {
+	const { logicalDeviceId } = req.params;
+	const response = new standardResponse(req);
 
-	res.locals.volumeStep = volumeStep ? parseFloat(volumeStep) : VOLUME_STEP;
-	res.locals.commandDelay = commandDelay ? parseInt(commandDelay) : COMMAND_DELAY;
+	if (!logicalDeviceId) {
+		response.error = true;
+		response.message = 'Logical device ID is required';
+		return res.status(400).json(response);
+	}
+
+	const output = callCecCtl(`--get-cec-version -t ${logicalDeviceId}`);
+
+	if (output) {
+		const version = output.match(/cec-version: (\S+)/);
+		response.version = version ? version[1] : null;
+	} else {
+		response.error = true;
+		response.message = 'Failed to get CEC version.';
+		return res.status(500).json(response);
+	}
+
+	res.json(response);
+
 	next();
 });
 
-app.get('/get-cec-version/:logicalDeviceId', (req, res) => {
+app.get('/get-audio-status/:logicalDeviceId', (req, res, next) => {
 	const { logicalDeviceId } = req.params;
+	const response = new standardResponse(req);
 
 	if (!logicalDeviceId) {
-		return res.status(400).json({ error: 'Logical device ID is required' });
-	}
-
-	const result = callCecCtl(`--get-cec-version -t ${logicalDeviceId}`);
-
-	if (result) {
-		const version = result.match(/cec-version: (\S+)/);
-
-		res.json({
-			version: version ? version[1] : null
-		});
-	} else {
-		res.status(500).json({ error: 'Failed to get CEC version.' });
-	}
-});
-
-app.get('/get-audio-status/:logicalDeviceId', (req, res) => {
-	const { logicalDeviceId } = req.params;
-
-	if (!logicalDeviceId) {
-		return res.status(400).json({ error: 'Logical device ID is required.' });
+		response.error = true;
+		response.message = 'Logical device ID is required.';
+		return res.status(400).json(response);
 	}
 	
 	const audioStatus = getAudioStatus(logicalDeviceId);
 	if (audioStatus) {
-		res.json(audioStatus);
+		response.audioStatus = audioStatus;
 	} else {
-		res.status(500).json({ error: 'Failed to get audio status.' });
+		response.error = true;
+		response.message = 'Failed to get audio status.';
+		return res.status(500).json(response);
 	}
+
+	res.json(response);
+
+	next();
 });
 
-app.get('/set-volume-relative/:logicalDeviceId/:volume', (req, res) => {
+app.get('/set-volume-relative/:logicalDeviceId/:volume', (req, res, next) => {
 	const { logicalDeviceId, volume } = req.params;
+	const response = new standardResponse(req);
 
 	if (!logicalDeviceId || !volume) {
-		return res.status(400).json({ error: 'Logical device ID and volume offset are required.' });
+		response.error = true;
+		response.message = 'Logical device ID and volume offset are required.';
+		return res.status(400).json(response);
 	}
 	
 	if (volume > 0) {
@@ -127,91 +150,88 @@ app.get('/set-volume-relative/:logicalDeviceId/:volume', (req, res) => {
 		decreaseVolume(logicalDeviceId);
 	}
 
-	res.status(200).json({ message: 'Volume adjusted successfully.' });
+	res.status(200).json(response);
+
+	next();
 });	
 
 app.get('/set-volume-absolute/:logicalDeviceId/:volume', async (req, res, next) => {
 	const { logicalDeviceId, volume } = req.params;
+	const { debug } = req.query;
 
+	const response = new standardResponse(req);
+	
 	if (!logicalDeviceId || !volume) {
-		return res.status(400).json({ error: 'Logical device ID and volume are required.' });
+		response.error = true;
+		response.message = 'Logical device ID and volume are required.';
+		return res.status(400).json(response);
 	}
 
-	// Temporary hack due to scoping issues with res.locals
-	const { volumeStep, commandDelay } = req.query;
-	res.locals.volumeStep = volumeStep ? parseFloat(volumeStep) : VOLUME_STEP;
-	res.locals.commandDelay = commandDelay ? parseInt(commandDelay) : COMMAND_DELAY;
+	if (debug) {
+		response.debug = response.debug || {};
+		response.debug.requestedVolume = volume;
+	}
 
-	let response = {
-		volumeStep: res.locals.volumeStep,
-		commandDelay: res.locals.commandDelay,
-		requestedVolume: volume
-	};
-	
+	// Default values are what work for my setup
+	const volumeStep = req.query.volumeStep ? parseFloat(req.query.volumeStep) : VOLUME_STEP;
+	const commandDelay = req.query.commandDelay ? parseInt(req.query.commandDelay) : COMMAND_DELAY;
+
 	try {
 		const audioStatus = getAudioStatus(logicalDeviceId);
 		if (audioStatus) {
 			const currentVolume = audioStatus.volume;
-			response.currentVolume = currentVolume;
 			if (currentVolume !== null) {
 				if (currentVolume < volume) {
-					for (let i = currentVolume; i < volume; i+=res.locals.volumeStep) {
+					for (let i = currentVolume; i < volume; i+=volumeStep) {
 						increaseVolume(logicalDeviceId);
-						if (res.locals.commandDelay > 0) {
-							await setTimeout(res.locals.commandDelay);
+						if (commandDelay > 0) {
+							await setTimeout(commandDelay);
 						}
 					}
 				} else if (currentVolume > volume) {
 					for (let i = currentVolume; i > volume; i-=res.locals.volumeStep) {
 						decreaseVolume(logicalDeviceId);
-						if (res.locals.commandDelay > 0) {
-							await setTimeout(res.locals.commandDelay);
+						if (commandDelay > 0) {
+							await setTimeout(commandDelay);
 						}
 					}
 				} else {
 					response.message = 'Volume is already set to the desired value.';
 				}
 			} else {
-				throw "The current volume can't be read.";
+				throw "The current volume level is not available to compare against. Aborting.";
 			}
 		} else {
-			throw "Failed to get current audio status.";
+			throw "Failed to get current audio status. Aborting.";
 		}
 	} catch (error) {
-		const errorMessage = 'Failed to set volume: ' + error;
+		const errorMessage = 'Failed to set an absolute volume value: ' + error.toString();
 		console.error(errorMessage);
-		response.error = errorMessage;
-		res.status(500).json(response);
+		response.error = true;
+		response.message = errorMessage;
+		return res.status(500).json(response);
 	}
 
 	res.status(200).json(response);
+
 	next();
 });
 
 // 404 handler
 app.use((req, res) => {
-	let response = {
-		volumeStep: res.locals.volumeStep,
-		commandDelay: res.locals.commandDelay,
-		error: 'Unknown endpoint'
-	};
+	const response = new standardResponse(req);
+	response.error = true;
+	response.message = 'Unknown endpoint.';
 	res.status(404).json(response);
 });
 
-// 500 handler
-app.use((err, req, res) => {
-	let response = {
-		volumeStep: res.locals.volumeStep,
-		commandDelay: res.locals.commandDelay,
-		error: err.message
-	};
-	res.status(500).json(response);
-	console.error(err.stack);
-});
-
-// Execute the playback registration command on startup
-callCecCtl('--playback');
-console.log('Successfully registered as playback device');
+// Re-set the CEC device and execute the playback registration command on startup
+if (callCecCtl('--clear') && callCecCtl('--playback')) {
+	console.log('Successfully registered as playback device');
+} else {
+	console.error('Failed to reset CEC device. Aborting.');
+	process.exit(1);
+}
 
 // Start the server
 const port = process.env.PORT || 3000;
