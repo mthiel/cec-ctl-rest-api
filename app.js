@@ -34,6 +34,15 @@ function getAudioStatus(logicalDeviceId) {
 	}
 }
 
+function changeVolume(logicalDeviceId, volume) {
+	if (volume > 0) {
+		callCecCtl(`--user-control-pressed ui-cmd=volume-up -t ${logicalDeviceId}`);
+	} else {
+		callCecCtl(`--user-control-pressed ui-cmd=volume-down -t ${logicalDeviceId}`);
+	}
+	callCecCtl(`--user-control-released -t ${logicalDeviceId}`);
+}
+
 app.get('/get-cec-version/:logicalDeviceId', (req, res) => {
 	const { logicalDeviceId } = req.params;
 
@@ -76,12 +85,9 @@ app.get('/set-volume-relative/:logicalDeviceId/:volume', (req, res) => {
 		return res.status(400).json({ error: 'Logical device ID and volume offset are required.' });
 	}
 	
-	if (volume > 0) {
-		callCecCtl(`--user-control-pressed ui-cmd=volume-up -t ${logicalDeviceId}`);
-	} else {
-		callCecCtl(`--user-control-pressed ui-cmd=volume-down -t ${logicalDeviceId}`);
-	}
-	callCecCtl(`--user-control-released -t ${logicalDeviceId}`);
+	changeVolume(logicalDeviceId, volume);
+
+	res.status(200).json({ message: 'Volume adjusted successfully.' });
 });	
 
 app.get('/set-volume-absolute/:logicalDeviceId/:volume', (req, res) => {
