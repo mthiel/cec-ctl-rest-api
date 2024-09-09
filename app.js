@@ -72,8 +72,8 @@ function getAudioStatus(logicalDeviceId) {
 }
 
 function sendUserControl(logicalDeviceId, control) {
-	if (callCecCtl(`--user-control-pressed ui-cmd=${control} -t ${logicalDeviceId}`)) {
-		if (callCecCtl(`--user-control-released -t ${logicalDeviceId}`)) {
+	if (callCecCtl(`--user-control-pressed ui-cmd=${control} -t ${logicalDeviceId}`) !== null) {
+		if (callCecCtl(`--user-control-released -t ${logicalDeviceId}`) !== null) {
 			return true;
 		}
 	}
@@ -112,7 +112,7 @@ app.get('/get-cec-version/:logicalDeviceId', (req, res, next) => {
 	*/
 	const output = callCecCtl(`--get-cec-version -t ${logicalDeviceId}`);
 
-	if (output) {
+	if (output !== null) {
 		const version = output.match(/cec-version: (\S+)/); // cec-version: version-1-4 (0x05)
 		response.version = version ? version[1] : null;
 	} else {
@@ -248,7 +248,7 @@ app.use((req, res) => {
 });
 
 // Re-set the CEC device and execute the playback registration command on startup
-if (callCecCtl('--clear') && callCecCtl('--playback')) {
+if (callCecCtl('--clear') !== null && callCecCtl('--playback') !== null) {
 	console.log('Successfully registered as playback device');
 } else {
 	console.error('Failed to reset CEC device. Aborting.');
@@ -263,8 +263,11 @@ const server = app.listen(port, () => console.log(`Server running on port ${port
 process.on('SIGINT', () => {
 	console.log('Shutting down server...');
 	try {
-		callCecCtl('--clear');
-		console.log('Successfully unregistered CEC device.');
+		if (callCecCtl('--clear') !== null) {
+			console.log('Successfully unregistered CEC device.');
+		} else {
+			throw 'Command failed.';
+		}
 	} catch (error) {
 		console.error('Failed to unregister CEC device: ', error);
 	}
