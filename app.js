@@ -240,8 +240,36 @@ app.get('/set-volume-absolute/:logicalDeviceId/:volume', async (req, res, next) 
 	next();
 });
 
+app.get('/set-mute/:logicalDeviceId/:mute', (req, res, next) => {
+	const { logicalDeviceId, mute } = req.params;
+	const response = new standardResponse(req);
+
+	if (!logicalDeviceId || mute === undefined) {
+		response.error = true;
+		response.message = 'Logical device ID and mute status are required.';
+		return res.status(400).json(response);
+	}
+
+	// Since we can only perform a toggle, we need to check if the current status is the same as the desired status
+	if (getAudioStatus(logicalDeviceId).mute === mute) {
+		response.message = 'Mute status is already set to the desired value.';
+		return res.status(200).json(response);
+	}
+
+	if (sendUserControl(logicalDeviceId, 'mute')) {
+		response.message = 'Mute command sent successfully.';
+	} else {
+		response.error = true;
+		response.message = 'Failed to send mute command.';
+		return res.status(500).json(response);
+	}
+
+	res.status(200).json(response);
+
+	next();
+});
+
 // TODO: Implement the following endpoints:
-// - set-mute
 // - set-active-source
 
 // 404 handler
