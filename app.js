@@ -131,17 +131,19 @@ app.get('/set-volume-absolute/:logicalDeviceId/:volume', async (req, res) => {
 				if (currentVolume < volume) {
 					for (let i = currentVolume; i < volume; i+=res.locals.volumeStep) {
 						increaseVolume(logicalDeviceId);
-						await setTimeout(res.locals.commandDelay);
+						if (res.locals.commandDelay > 0) {
+							await setTimeout(res.locals.commandDelay);
+						}
 					}
 				} else if (currentVolume > volume) {
 					for (let i = currentVolume; i > volume; i-=res.locals.volumeStep) {
 						decreaseVolume(logicalDeviceId);
-						await setTimeout(res.locals.commandDelay);
+						if (res.locals.commandDelay > 0) {
+							await setTimeout(res.locals.commandDelay);
+						}
 					}
 				} else {
 					response.message = 'Volume is already set to the desired value.';
-					res.status(200).json(response);
-					return;
 				}
 			} else {
 				throw "The current volume can't be read.";
@@ -155,6 +157,8 @@ app.get('/set-volume-absolute/:logicalDeviceId/:volume', async (req, res) => {
 		response.error = errorMessage;
 		res.status(500).json(response);
 	}
+
+	res.status(200).json(response);
 });
 
 // 404 handler
