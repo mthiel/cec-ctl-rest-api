@@ -251,7 +251,7 @@ app.get('/set-mute/:logicalDeviceId/:mute', (req, res, next) => {
 	}
 
 	// Since we can only perform a toggle, we need to check if the current status is the same as the desired status
-	if (getAudioStatus(logicalDeviceId).mute === mute) {
+	if (getAudioStatus(logicalDeviceId).mute == mute) {
 		response.message = 'Mute status is already set to the desired value.';
 		return res.status(200).json(response);
 	}
