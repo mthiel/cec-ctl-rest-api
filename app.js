@@ -86,7 +86,7 @@ function increaseVolume(logicalDeviceId) {
 }
 
 function decreaseVolume(logicalDeviceId) {
-	sendUserControl(logicalDeviceId, 'volume-down');
+	return sendUserControl(logicalDeviceId, 'volume-down');
 }
 
 app.get('/get-cec-version/:logicalDeviceId', (req, res, next) => {
@@ -126,7 +126,7 @@ app.get('/get-cec-version/:logicalDeviceId', (req, res, next) => {
 	next();
 });
 
-app.get('/get-audio-status/:logicalDeviceId', (req, res, next) => {
+app.get('/give-audio-status/:logicalDeviceId', (req, res, next) => {
 	const { logicalDeviceId } = req.params;
 	let response = new standardResponse(req);
 
@@ -160,6 +160,7 @@ app.get('/set-volume-relative/:logicalDeviceId/:volume', (req, res, next) => {
 		return res.status(400).json(response);
 	}
 	
+	// TODO: Implement multiple volume steps
 	if (volume > 0) {
 		increaseVolume(logicalDeviceId);
 	} else {
