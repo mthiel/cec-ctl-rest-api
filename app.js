@@ -34,13 +34,17 @@ function getAudioStatus(logicalDeviceId) {
 	}
 }
 
-function changeVolume(logicalDeviceId, volume) {
-	if (volume > 0) {
-		callCecCtl(`--user-control-pressed ui-cmd=volume-up -t ${logicalDeviceId}`);
-	} else {
-		callCecCtl(`--user-control-pressed ui-cmd=volume-down -t ${logicalDeviceId}`);
-	}
+function sendUserControl(logicalDeviceId, control) {
+	callCecCtl(`--user-control-pressed ui-cmd=${control} -t ${logicalDeviceId}`);
 	callCecCtl(`--user-control-released -t ${logicalDeviceId}`);
+}
+
+function increaseVolume(logicalDeviceId) {
+	sendUserControl(logicalDeviceId, 'volume-up');
+}
+
+function decreaseVolume(logicalDeviceId) {
+	sendUserControl(logicalDeviceId, 'volume-down');
 }
 
 app.get('/get-cec-version/:logicalDeviceId', (req, res) => {
@@ -85,7 +89,11 @@ app.get('/set-volume-relative/:logicalDeviceId/:volume', (req, res) => {
 		return res.status(400).json({ error: 'Logical device ID and volume offset are required.' });
 	}
 	
-	changeVolume(logicalDeviceId, volume);
+	if (volume > 0) {
+		increaseVolume(logicalDeviceId);
+	} else {
+		decreaseVolume(logicalDeviceId);
+	}
 
 	res.status(200).json({ message: 'Volume adjusted successfully.' });
 });	
@@ -129,7 +137,7 @@ app.use((req, res) => {
 });
 
 // 500 handler
-app.use((err, req, res, next) => {
+app.use((err, req, res) => {
 	console.error(err.stack);
 	res.status(500).json({ error: err.message });
 });
