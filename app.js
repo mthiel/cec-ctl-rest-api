@@ -315,6 +315,29 @@ app.get('/image-view-on/:logicalDeviceId', (req, res, next) => {
 	next();
 });
 
+app.get('/standby/:logicalDeviceId', (req, res, next) => {
+	const { logicalDeviceId } = req.params;
+	const response = new standardResponse(req);
+
+	if (!logicalDeviceId) {
+		response.error = true;
+		response.message = 'Logical device ID is required.';
+		return res.status(400).json(response);
+	}
+
+	if (callCecCtl(`--standby -t ${logicalDeviceId}`) !== null) {
+		response.message = 'Standby command sent successfully.';
+	} else {
+		response.error = true;
+		response.message = 'Failed to send standby command.';
+		return res.status(500).json(response);
+	}	
+
+	res.status(200).json(response);
+
+	next();
+});
+
 // 404 handler
 app.use((req, res, next) => {
 	if (res.headersSent) {
