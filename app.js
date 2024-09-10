@@ -292,6 +292,29 @@ app.get('/set-active-source/:address', (req, res, next) => {
 	next();
 });
 
+app.get('/image-view-on/:logicalDeviceId', (req, res, next) => {
+	const { logicalDeviceId } = req.params;
+	const response = new standardResponse(req);
+
+	if (!logicalDeviceId) {
+		response.error = true;
+		response.message = 'Logical device ID is required.';
+		return res.status(400).json(response);
+	}
+
+	if (callCecCtl(`--image-view-on -t ${logicalDeviceId}`) !== null) {
+		response.message = 'Image view on command sent successfully.';
+	} else {
+		response.error = true;
+		response.message = 'Failed to send image view on command.';
+		return res.status(500).json(response);
+	}	
+
+	res.status(200).json(response);
+
+	next();
+});
+
 // 404 handler
 app.use((req, res, next) => {
 	if (res.headersSent) {
