@@ -338,6 +338,29 @@ app.get('/standby/:logicalDeviceId', (req, res, next) => {
 	next();
 });
 
+app.get('/user-control-pressed/:logicalDeviceId/:control', (req, res, next) => {
+	const { logicalDeviceId, control } = req.params;
+	const response = new standardResponse(req);
+
+	if (!logicalDeviceId || !control) {
+		response.error = true;
+		response.message = 'Logical device ID and control are required.';
+		return res.status(400).json(response);
+	}
+
+	if (sendUserControl(logicalDeviceId, control)) {
+		response.message = 'User control pressed command sent successfully.';
+	} else {
+		response.error = true;
+		response.message = 'Failed to send user control pressed command.';
+		return res.status(500).json(response);
+	}
+
+	res.status(200).json(response);
+
+	next();
+});
+
 // 404 handler
 app.use((req, res, next) => {
 	if (res.headersSent) {
