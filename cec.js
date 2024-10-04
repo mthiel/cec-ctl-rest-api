@@ -1,7 +1,9 @@
-const { execSync } = require('child_process');
+const { execSync } = require("child_process");
 
-const CEC_CTL_COMMAND = 'cec-ctl';
-const CEC_CTL_DEFAULTS = '-s --cec-version-1.4';
+var CEC_CTL_COMMAND = "cec-ctl";
+var CEC_CTL_PARAMS = "-s --cec-version-1.4";
+var VOLUME_STEP = 0.5;
+var COMMAND_DELAY = 50;
 
 /**
  * @typedef {Object} CECResponse
@@ -14,10 +16,10 @@ const CEC_CTL_DEFAULTS = '-s --cec-version-1.4';
  * @returns {CECResponse}
  */
 function CECResponse() {
-    return {
-        error: false,
-        output: ''
-    };
+	return {
+		error: false,
+		output: "",
+	};
 }
 
 /**
@@ -27,18 +29,18 @@ function CECResponse() {
  * @returns {CECResponse} The response object
  */
 function call(args) {
-    const response = CECResponse();
+	const response = CECResponse();
 
-    const command = `${CEC_CTL_COMMAND} ${CEC_CTL_DEFAULTS} ${args}`;
+	const command = `${CEC_CTL_COMMAND} ${CEC_CTL_PARAMS} ${args}`;
 
-    try {
-        response.output = execSync(command).toString();
-    } catch (error) {
-        response.error = true;
-        response.output = error.toString();
-    }
+	try {
+		response.output = execSync(command).toString();
+	} catch (error) {
+		response.error = true;
+		response.output = error.toString();
+	}
 
-    return response;
+	return response;
 }
 
 /**
@@ -47,19 +49,19 @@ function call(args) {
  * @returns {CECResponse} The response object.
  */
 function getCECVersion(logicalDeviceId) {
-    if (!logicalDeviceId) {
-        throw new Error('Logical device ID is required');
-    }
+	if (!logicalDeviceId) {
+		throw new Error("Logical device ID is required");
+	}
 
-    return call(`--get-cec-version -t ${logicalDeviceId}`);
+	return call(`--get-cec-version -t ${logicalDeviceId}`);
 }
 
 function getAudioStatus(logicalDeviceId) {
-    if (!logicalDeviceId) {
-        throw new Error('Logical device ID is required');
-    }
+	if (!logicalDeviceId) {
+		throw new Error("Logical device ID is required");
+	}
 
-    /*
+	/*
 		Sample output:
 
 		Transmit from Playback Device 2 to Audio System (8 to 5):
@@ -76,21 +78,25 @@ function getAudioStatus(logicalDeviceId) {
 	if (result.error === false && result.output) {
 		const mute = result.output.match(/aud-mute-status: (\w+)/); // aud-mute-status: off (0x00)
 		const volume = result.output.match(/aud-vol-status: (\d+)/); // aud-vol-status: 40 (0x28)
-		
-        result.mute = mute && mute[1] === 'on' ? 1 : 0;
-        result.volume = volume ? parseInt(volume[1]) : null;
+
+		result.mute = mute && mute[1] === "on" ? 1 : 0;
+		result.volume = volume ? parseInt(volume[1]) : null;
 	}
 
-    return result;
+	return result;
 }
 
 function sendUserControl(logicalDeviceId, control) {
-    const result = call(`--user-control-pressed ui-cmd=${control} -t ${logicalDeviceId}`);
+	const result = call(
+		`--user-control-pressed ui-cmd=${control} -t ${logicalDeviceId}`
+	);
 
 	if (result.error === false) {
-		const releaseResult = call(`--user-control-released -t ${logicalDeviceId}`);
+		const releaseResult = call(
+			`--user-control-released -t ${logicalDeviceId}`
+		);
 		if (releaseResult.error === false) {
-			result.output = [result.output, releaseResult.output].join('\n');
+			result.output = [result.output, releaseResult.output].join("\n");
 		}
 	}
 
@@ -98,11 +104,11 @@ function sendUserControl(logicalDeviceId, control) {
 }
 
 function increaseVolume(logicalDeviceId) {
-	return sendUserControl(logicalDeviceId, 'volume-up');
+	return sendUserControl(logicalDeviceId, "volume-up");
 }
 
 function decreaseVolume(logicalDeviceId) {
-	return sendUserControl(logicalDeviceId, 'volume-down');
+	return sendUserControl(logicalDeviceId, "volume-down");
 }
 
 /**
@@ -110,7 +116,25 @@ function decreaseVolume(logicalDeviceId) {
  * @returns {boolean} True if the initialization was successful, false otherwise.
  */
 function initCEC() {
-    return call('--clear').error === false && call('--playback').error === false;
+	console.log("Initializing CEC...");
+
+	const clearResult = call("--clear");
+	if (clearResult.error) {
+		console.error("Failed to clear CEC device:", clearResult.output);
+		return false;
+	}
+
+	const playbackResult = call("--playback");
+	if (playbackResult.error) {
+		console.error(
+			"Failed to register as a playback device:",
+			playbackResult.output
+		);
+		return false;
+	}
+
+	console.log("CEC initialized successfully");
+	return true;
 }
 
 /**
@@ -118,13 +142,44 @@ function initCEC() {
  * @returns {boolean} True if the unregistration was successful, false otherwise.
  */
 function unregisterCEC() {
-    return call('--clear').error === false;
+	console.log("Unregistering CEC...");
+
+	const result = call("--clear");
+	if (result.error) {
+		console.error("Failed to unregister CEC:", result.output);
+		return false;
+	}
+
+	console.log("CEC unregistered successfully");
+	return true;
 }
 
 /**
- * A module for interacting with CEC (Consumer Electronics Control) devices using the cec-ctl command.
- * @module cec
- * 
+ * Unregisters the CEC device during shutdown.
+ */
+process.on("SIGINT", () => {
+	try {
+		if (unregisterCEC()) {
+			console.log("Successfully unregistered CEC device.");
+		} else {
+			console.log("Unable to unregister CEC device during shutdown.");
+		}
+	} catch (error) {
+		console.error(
+			"Error unregistering CEC device during shutdown: ",
+			error
+		);
+	}
+});
+
+/**
+ * Initializes the CEC module with the specified options.
+ * @param {Object} options - The options object.
+ * @param {string} options.cecCtlParams - The parameters for the cec-ctl command.
+ * @param {number} options.volumeStep - The volume step value.
+ * @param {number} options.commandDelay - The command delay in milliseconds.
+ * @returns {Object|null} The CEC module or null if initialization failed.
+ *
  * @example
  * const cec = require('./cec');
  * if (cec) {
@@ -134,18 +189,22 @@ function unregisterCEC() {
  *   console.error('CEC initialization failed');
  * }
  */
-const cec = {
-    call,
-    getCECVersion,
-    getAudioStatus,
-    sendUserControl,
-    increaseVolume,
-    decreaseVolume,
-    unregisterCEC
-};
+function init(options) {
+	CEC_CTL_PARAMS = options.cecCtlParams || CEC_CTL_PARAMS;
+	VOLUME_STEP = options.volumeStep || VOLUME_STEP;
+	COMMAND_DELAY = options.commandDelay || COMMAND_DELAY;
 
-if (initCEC()) {
-    module.exports = cec;
-} else {
-    module.exports = null;
+	if (initCEC()) {
+		return {
+			call,
+			getCECVersion,
+			getAudioStatus,
+			sendUserControl,
+			increaseVolume,
+			decreaseVolume,
+		};
+	}
+	return null;
 }
+
+module.exports = init;
