@@ -3,7 +3,7 @@
 const expressWs = require('express-ws');
 
 function parseDataToJSON(data) {
-	var parsedData;
+    var parsedData;
 
 	try {
 		parsedData = JSON.parse(data);
@@ -28,7 +28,12 @@ function WebSocketHandler(cec, app, path = '/socket') {
 
 	app.ws(path, (ws) => {
 		ws.on('message', (data) => {
+			console.info('Received websocket message: ', data);
+
 			const { command, params } = parseDataToJSON(data);
+
+			console.info('Parsed command: ', command);
+			console.info('Parsed params: ', params);
 
 			switch (command) {
 				case 'get-cec-version':
@@ -58,6 +63,11 @@ function WebSocketHandler(cec, app, path = '/socket') {
 				case 'user-control-pressed':
 					ws.send(cec.sendUserControl(params.logicalDeviceId, params.control));
 					break;
+				default:
+					ws.send({
+						error: true,
+						message: 'Invalid command.'
+					});
 			}
 		});
 	});
