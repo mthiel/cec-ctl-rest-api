@@ -27,39 +27,38 @@ function WebSocketHandler(cec, app, path = '/socket') {
 	expressWs(app);
 
 	app.ws(path, (ws) => {
-		ws.on('get-cec-version', (data) => {
-			ws.send(cec.getCECVersion(parseDataToJSON(data).logicalDeviceId));
-		});
-		ws.on('get-audio-status', (data) => {
-			ws.send(cec.getAudioStatus(parseDataToJSON(data).logicalDeviceId));
-		});
-		ws.on('set-volume-relative', (data) => {
-			const { logicalDeviceId, volume } = parseDataToJSON(data);
-			ws.send(cec.setVolumeRelative(logicalDeviceId, volume));
-		});
-		ws.on('set-volume-absolute', (data) => {
-			const { logicalDeviceId, volume } = parseDataToJSON(data);
-			ws.send(cec.setVolumeAbsolute(logicalDeviceId, volume));
-		});
-		ws.on('set-mute', (data) => {
-			const { logicalDeviceId, mute } = parseDataToJSON(data);
-			ws.send(cec.setMute(logicalDeviceId, mute));
-		});
-		ws.on('set-active-source', (data) => {
-			const { physicalAddress } = parseDataToJSON(data);
-			ws.send(cec.setActiveSource(physicalAddress));
-		});
-		ws.on('set-image-view-on', (data) => {
-			const { logicalDeviceId } = parseDataToJSON(data);
-			ws.send(cec.setImageViewOn(logicalDeviceId));
-		});
-		ws.on('set-standby', (data) => {
-			const { logicalDeviceId } = parseDataToJSON(data);
-			ws.send(cec.setStandby(logicalDeviceId));
-		});
-		ws.on('user-control-pressed', (data) => {
-			const { logicalDeviceId, control } = parseDataToJSON(data);
-			ws.send(cec.sendUserControl(logicalDeviceId, control));
+		ws.on('message', (data) => {
+			const { command, params } = parseDataToJSON(data);
+
+			switch (command) {
+				case 'get-cec-version':
+					ws.send(cec.getCECVersion(params.logicalDeviceId));
+					break;
+				case 'get-audio-status':
+					ws.send(cec.getAudioStatus(params.logicalDeviceId));
+					break;
+				case 'set-volume-relative':
+					ws.send(cec.setVolumeRelative(params.logicalDeviceId, params.volume));
+					break;
+				case 'set-volume-absolute':
+					ws.send(cec.setVolumeAbsolute(params.logicalDeviceId, params.volume));
+					break;
+				case 'set-mute':
+					ws.send(cec.setMute(params.logicalDeviceId, params.mute));
+					break;
+				case 'set-active-source':
+					ws.send(cec.setActiveSource(params.address));
+					break;
+				case 'set-image-view-on':
+					ws.send(cec.setImageViewOn(params.logicalDeviceId));
+					break;
+				case 'set-standby':
+					ws.send(cec.setStandby(params.logicalDeviceId));
+					break;
+				case 'user-control-pressed':
+					ws.send(cec.sendUserControl(params.logicalDeviceId, params.control));
+					break;
+			}
 		});
 	});
 }
