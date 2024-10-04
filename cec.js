@@ -164,7 +164,7 @@ function setMute(logicalDeviceId, mute) {
 	}
 
 	// Since we can only perform a toggle, we need to check if the current status is the same as the desired status
-	if (result.mute === mute) {
+	if (result.mute == mute) {
 		result.output = 'Mute status is already set to the desired value.';
 		return result;
 	}
