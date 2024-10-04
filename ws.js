@@ -35,40 +35,44 @@ function WebSocketHandler(cec, app, path = '/socket') {
 			console.info('Parsed command: ', command);
 			console.info('Parsed params: ', params);
 
+            var response = {};
+
 			switch (command) {
 				case 'get-cec-version':
-					ws.send(cec.getCECVersion(params.logicalDeviceId));
+					response = cec.getCECVersion(params.logicalDeviceId);
 					break;
 				case 'get-audio-status':
-					ws.send(cec.getAudioStatus(params.logicalDeviceId));
+					response = cec.getAudioStatus(params.logicalDeviceId);
 					break;
 				case 'set-volume-relative':
-					ws.send(cec.setVolumeRelative(params.logicalDeviceId, params.volume));
+					response = cec.setVolumeRelative(params.logicalDeviceId, params.volume);
 					break;
 				case 'set-volume-absolute':
-					ws.send(cec.setVolumeAbsolute(params.logicalDeviceId, params.volume));
+					response = cec.setVolumeAbsolute(params.logicalDeviceId, params.volume);
 					break;
 				case 'set-mute':
-					ws.send(cec.setMute(params.logicalDeviceId, params.mute));
+					response = cec.setMute(params.logicalDeviceId, params.mute);
 					break;
 				case 'set-active-source':
-					ws.send(cec.setActiveSource(params.address));
+					response = cec.setActiveSource(params.address);
 					break;
 				case 'set-image-view-on':
-					ws.send(cec.setImageViewOn(params.logicalDeviceId));
+					response = cec.setImageViewOn(params.logicalDeviceId);
 					break;
 				case 'set-standby':
-					ws.send(cec.setStandby(params.logicalDeviceId));
+					response = cec.setStandby(params.logicalDeviceId);
 					break;
 				case 'user-control-pressed':
-					ws.send(cec.sendUserControl(params.logicalDeviceId, params.control));
+					response = cec.sendUserControl(params.logicalDeviceId, params.control);
 					break;
 				default:
-					ws.send({
+					response = {
 						error: true,
 						message: 'Invalid command.'
-					});
+					};
 			}
+
+			ws.send(JSON.stringify(response));
 		});
 	});
 }
