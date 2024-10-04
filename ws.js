@@ -43,40 +43,47 @@ function WebSocketHandler(cec, app, path = '/socket') {
             console.info('Parsed command: ', command);
 			console.info('Parsed params: ', params);
 
-			switch (command) {
-				case 'get-cec-version':
-					response = cec.getCECVersion(params.logicalDeviceId);
-					break;
-				case 'get-audio-status':
-					response = cec.getAudioStatus(params.logicalDeviceId);
-					break;
-				case 'set-volume-relative':
-					response = cec.setVolumeRelative(params.logicalDeviceId, params.volume);
-					break;
-				case 'set-volume-absolute':
-					response = cec.setVolumeAbsolute(params.logicalDeviceId, params.volume);
-					break;
-				case 'set-mute':
-					response = cec.setMute(params.logicalDeviceId, params.mute);
-					break;
-				case 'set-active-source':
-					response = cec.setActiveSource(params.address);
-					break;
-				case 'set-image-view-on':
-					response = cec.setImageViewOn(params.logicalDeviceId);
-					break;
-				case 'set-standby':
-					response = cec.setStandby(params.logicalDeviceId);
-					break;
-				case 'user-control-pressed':
-					response = cec.sendUserControl(params.logicalDeviceId, params.control);
-					break;
-				default:
-					response = {
-						error: true,
-						message: 'Invalid command.'
-					};
-			}
+            try {
+                switch (command) {
+                    case 'get-cec-version':
+                        response = cec.getCECVersion(params.logicalDeviceId);
+                        break;
+                    case 'get-audio-status':
+                        response = cec.getAudioStatus(params.logicalDeviceId);
+                        break;
+                    case 'set-volume-relative':
+                        response = cec.setVolumeRelative(params.logicalDeviceId, params.volume);
+                        break;
+                    case 'set-volume-absolute':
+                        response = cec.setVolumeAbsolute(params.logicalDeviceId, params.volume);
+                        break;
+                    case 'set-mute':
+                        response = cec.setMute(params.logicalDeviceId, params.mute);
+                        break;
+                    case 'set-active-source':
+                        response = cec.setActiveSource(params.address);
+                        break;
+                    case 'set-image-view-on':
+                        response = cec.setImageViewOn(params.logicalDeviceId);
+                        break;
+                    case 'set-standby':
+                        response = cec.setStandby(params.logicalDeviceId);
+                        break;
+                    case 'user-control-pressed':
+                        response = cec.sendUserControl(params.logicalDeviceId, params.control);
+                        break;
+                    default:
+                        response = {
+                            error: true,
+                            message: 'Invalid command.'
+                        };
+                }
+            } catch (error) {
+                response = {
+                    error: true,
+                    message: 'Failed to execute command: ' + error
+                };
+            }
 
 			ws.send(JSON.stringify(response));
 		});
