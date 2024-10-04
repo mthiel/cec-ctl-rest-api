@@ -27,23 +27,25 @@ function RestHandler(cec, app) {
 
 	app.get(
 		'/get-cec-version/:logicalDeviceId',
-		(req, res) => {
+		(req, res, next) => {
 			res.locals.result = cec.getCECVersion(req.params.logicalDeviceId);
+			next();
 		},
 		renderResult
 	);
 
 	app.get(
 		'/give-audio-status/:logicalDeviceId',
-		(req, res) => {
+		(req, res, next) => {
 			res.locals.result = cec.getAudioStatus(req.params.logicalDeviceId);
+			next();
 		},
 		renderResult
 	);
 
 	app.get(
 		'/set-volume-relative/:logicalDeviceId/:volume',
-		(req, res) => {
+		(req, res, next) => {
 			const { logicalDeviceId, volume } = req.params;
 
 			// TODO: Implement multiple volume steps
@@ -52,60 +54,68 @@ function RestHandler(cec, app) {
 			} else {
 				res.locals.result = cec.decreaseVolume(logicalDeviceId);
 			}
+
+			next();
 		},
 		renderResult
 	);
 
 	app.get(
 		'/set-volume-absolute/:logicalDeviceId/:volume',
-		(req, res) => {
+		(req, res, next) => {
 			const { logicalDeviceId, volume } = req.params;
 
 			res.locals.result = cec.setVolumeAbsolute(logicalDeviceId, volume);
+			next();
 		},
 		renderResult
 	);
 
 	app.get(
 		'/set-mute/:logicalDeviceId/:mute',
-		(req, res) => {
+		(req, res, next) => {
 			const { logicalDeviceId, mute } = req.params;
 
 			res.locals.result = cec.setMute(logicalDeviceId, mute);
+			next();
 		},
 		renderResult
 	);
 
 	app.get(
 		'/set-active-source/:address',
-		(req, res) => {
+		(req, res, next) => {
 			res.locals.result = cec.setActiveSource(req.params.address);
+			next();
 		},
 		renderResult
 	);
 
 	app.get(
 		'/image-view-on/:logicalDeviceId',
-		(req, res) => {
+		(req, res, next) => {
 			res.locals.result = cec.setImageViewOn(req.params.logicalDeviceId);
+			next();
 		},
 		renderResult
 	);
 
 	app.get(
 		'/standby/:logicalDeviceId',
-		(req, res) => {
+		(req, res, next) => {
 			res.locals.result = cec.setStandby(req.params.logicalDeviceId);
+			next();
 		},
 		renderResult
 	);
 
 	app.get(
 		'/user-control-pressed/:logicalDeviceId/:control',
-		(req, res) => {
+		(req, res, next) => {
 			const { logicalDeviceId, control } = req.params;
 
 			res.locals.result = cec.sendUserControl(logicalDeviceId, control);
+			next();
 		},
 		renderResult
 	);
