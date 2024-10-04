@@ -1,5 +1,5 @@
 const { execSync } = require('child_process');
-const { setTimeout } = require('timers');
+const { setTimeout } = require('timers/promises');
 
 // Default values are what work for my setup
 var CEC_CTL_COMMAND = 'cec-ctl';
