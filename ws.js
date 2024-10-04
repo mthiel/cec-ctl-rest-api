@@ -30,12 +30,18 @@ function WebSocketHandler(cec, app, path = '/socket') {
 		ws.on('message', (data) => {
 			console.info('Received websocket message: ', data);
 
-			const { command, params } = parseDataToJSON(data);
-
-			console.info('Parsed command: ', command);
-			console.info('Parsed params: ', params);
-
             var response = {};
+
+            const dataObj = parseDataToJSON(data);
+
+            if (dataObj.error) {
+                ws.send(JSON.stringify(dataObj));
+                return;
+            }
+
+            const { command, params } = dataObj;
+            console.info('Parsed command: ', command);
+			console.info('Parsed params: ', params);
 
 			switch (command) {
 				case 'get-cec-version':
